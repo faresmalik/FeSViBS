@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+vit_base_r50_s16_224_0.0001lr_bloodmnist_200rounds_Centralized/ 
+vit_base_r50_s16_224_0.0001lr_isic2019_200rounds_Centralized/ 
+vit_base_r50_s16_224_0.0001lr_isic2019_200rounds_Local/ 
+vit_base_r50_s16_224_0.0001lr_HAM_200rounds_Local/ 
+vit_base_r50_s16_224_0.0001lr_bloodmnist_200rounds_Local/ 
+vit_base_r50_s16_224_0.0001lr_HAM_200rounds_Centralized/ 
