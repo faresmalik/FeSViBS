@@ -10,6 +10,31 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 
+def weight_vec(network):
+    A = []
+    for w in network.parameters():
+        A.append(torch.flatten(w))
+    return torch.cat(A)
+
+
+def weight_dec_global(pyModel, weight_vec): 
+    """
+    Reshape the weight back to its original shape in pytorch and then 
+    plug it to the model
+    """
+    c = 0
+    for w in pyModel.parameters():
+        m = w.numel()
+        D = weight_vec[c:m+c].reshape(w.data.shape) 
+        c+=m
+        if w.data is None:
+            w.data = D+0
+        else:
+            with torch.no_grad():
+                w.set_( D+0 )
+    return pyModel
+
+
 def distribute_data(numOfClients, train_dataset, batch_size):
     """
     numOfClients: int 
