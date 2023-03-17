@@ -129,7 +129,7 @@ class CentralizedFashion():
             with open(os.path.join(base_dir,f'balanced_accs'), 'wb') as handle:
                 pkl.dump(self.balanced_accs, handle)
 
-class SViBS(nn.Module): 
+class SLViT(nn.Module): 
     def __init__(
         self, ViT_name, num_classes , num_clients=6, 
         in_channels=3, ViT_pretrained = False,

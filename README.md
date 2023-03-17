@@ -18,8 +18,8 @@ python centralized.py  --dataset_name [choose the dataset name] --opt_name [defa
 ```
 
 
-## Running Local Training for Each Client
-In order to run  **Local Training** run the following command: 
+## Running Local Training/Testing for Each Client
+In order to run  **Local Training/Testing** run the following command: 
 
 ```
 python local.py  --dataset_name [choose the dataset name] --opt_name [default is Adam] --lr [learning rate] --seed [seed number] --base_dir [path data folder for HAM] --save_every_epochs [Save pickle files] --root_dir [Path to ISIC_2019_Training_Input_preprocessed for ISIC2019]  --csv_file_path [Path to train_test_split csv for ISIC2019] --num_clients [Number of clients] --local_arg True

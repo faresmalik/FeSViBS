@@ -3,12 +3,12 @@ import torch
 import numpy as np
 from torch import nn
 import random 
-from models import SViBS, SplitNetwork
+from models import SLViT, SplitNetwork
 from dataset import skinCancer, bloodmnisit, isic2019
 import argparse 
 from utils import weight_dec_global
 
-def svibs(dataset_name, lr, batch_size, Epochs, input_size, num_workers, save_every_epochs, model_name, pretrained, opt_name, seed , base_dir, root_dir, csv_file_path, num_clients, DP, epsilon, delta):
+def slvit(dataset_name, lr, batch_size, Epochs, input_size, num_workers, save_every_epochs, model_name, pretrained, opt_name, seed , base_dir, root_dir, csv_file_path, num_clients, DP, epsilon, delta):
 
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -24,10 +24,10 @@ def svibs(dataset_name, lr, batch_size, Epochs, input_size, num_workers, save_ev
     if DP: 
         std = np.sqrt(2 * np.math.log(1.25/delta)) / epsilon 
 
-    save_dir = f'{model_name}_{lr}lr_{dataset_name}_{num_clients}Clients_{DP}DP_{batch_size}Batch_SViBS'
+    save_dir = f'{model_name}_{lr}lr_{dataset_name}_{num_clients}Clients_{DP}DP_{batch_size}Batch_SLViT'
 
     if DP: 
-        save_dir = f'{model_name}_{lr}lr_{dataset_name}_{num_clients}Clients_({epsilon}, {delta})DP_{batch_size}Batch_SViBS'
+        save_dir = f'{model_name}_{lr}lr_{dataset_name}_{num_clients}Clients_({epsilon}, {delta})DP_{batch_size}Batch_SLViT'
     
     os.mkdir(save_dir)
 
@@ -47,7 +47,7 @@ def svibs(dataset_name, lr, batch_size, Epochs, input_size, num_workers, save_ev
         DATALOADERS, _, _, _, _, test_loader = isic2019(input_size= input_size, batch_size = batch_size, root_dir=root_dir, csv_file_path=csv_file_path, num_workers=num_workers)
         num_channels = 3
 
-    slvit = SViBS(
+    slvit = SLViT(
         ViT_name= model_name, num_classes=num_classes,
         num_clients=num_clients, in_channels=num_channels,
         ViT_pretrained = pretrained,
@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    svibs(
+    slvit(
         dataset_name = args.dataset_name, input_size= args.input_size, 
         num_workers= args.num_workers, model_name= args.model_name, 
         pretrained= args.pretrained, batch_size= args.batch_size, 
