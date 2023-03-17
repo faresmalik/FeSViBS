@@ -67,7 +67,7 @@ def local(dataset_name, lr, batch_size, Epochs, input_size, num_workers, save_ev
     local = [CentralizedFashion(
         device = device,
         network = model[i], criterion = criterion,
-        network_name = model_name, base_dir = save_dir
+        base_dir = save_dir
     ) for i in range(num_clients)]
 
 

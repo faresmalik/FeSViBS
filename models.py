@@ -3,6 +3,7 @@ import pickle as pkl
 import os 
 import timm 
 import copy 
+import numpy as np 
 
 import torch.nn as nn 
 import torch 
@@ -12,14 +13,13 @@ from dataset import blood_noniid, bloodmnisit, distribute_data
 from utils import weight_vec
 
 class CentralizedFashion(): 
-    def __init__(self, device, network, criterion, network_name, base_dir):
+    def __init__(self, device, network, criterion, base_dir):
         """
             Class for Centralized Paradigm.    
             args:
                 device: cuda vs cpu
                 network: ViT model
                 criterion: loss function to be used
-                network_name: used for saving purposes 
                 base_dir: where to save metrics as pickles
             return: 
                 None 
@@ -27,7 +27,6 @@ class CentralizedFashion():
         self.device = device
         self.network = network
         self.criterion = criterion
-        self.network_name = network_name
         self.base_dir = base_dir
 
     def set_optimizer(self, name, lr):
@@ -191,7 +190,6 @@ class SplitNetwork():
             device: cuda vs cpu
             network: ViT model
             criterion: loss function to be used
-            network_name: used for saving purposes 
             base_dir: where to save pickles/model files
         """
         
@@ -326,3 +324,168 @@ class SplitNetwork():
             pkl.dump(self.losses, handle)
         with open(os.path.join(base_dir,'balanced_accs'), 'wb') as handle:
             pkl.dump(self.balanced_accs, handle)
+
+class FeSVBiS(nn.Module): 
+    def __init__(
+        self, ViT_name, num_classes,
+        num_clients=6, in_channels=3, ViT_pretrained=False, 
+        initial_block=1, final_block=6, resnet_dropout = None, DP = False, mean = None, std = None
+        ) -> None:
+        super().__init__()
+
+        self.initial_block = initial_block
+        self.final_block = final_block
+
+        self.vit = timm.create_model(
+            model_name = ViT_name,
+            pretrained = ViT_pretrained,
+            num_classes = num_classes,
+            in_chans = in_channels
+        )   
+
+        self.resnet50 = self.vit.patch_embed
+        self.resnet50_clients = nn.ModuleList([copy.deepcopy(self.resnet50) for i in range(num_clients)])
+        self.common_network = ResidualBlock(drop_out=resnet_dropout)
+        client_tail = MLP_cls_classes(num_classes= num_classes)
+        self.mlp_clients_tail =  nn.ModuleList([copy.deepcopy(client_tail) for i in range(num_clients)])
+        self.DP = DP
+        self.mean = mean
+        self.std = std
+
+    def forward(self, x, chosen_block, client_idx):
+        x = self.resnet50_clients[client_idx](x)
+        if self.DP: 
+            noise = torch.randn(size= x.shape).cuda() * self.std + self.mean
+            x = x + noise
+        for block_num in range(chosen_block):
+            x = self.vit.blocks[block_num](x)
+        x = self.common_network(x)
+        x = self.mlp_clients_tail[client_idx](x)
+        return x
+
+
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels=768, out_channels=768, stride = 1, downsample = None, drop_out= None):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels, kernel_size = 3, stride = stride, padding = 1),
+                        nn.BatchNorm2d(out_channels),
+                        nn.ReLU())
+        self.conv2 = nn.Sequential(
+                        nn.Conv2d(out_channels, out_channels, kernel_size = 3, stride = 1, padding = 1),
+                        nn.BatchNorm2d(out_channels))
+        self.downsample = downsample
+        self.relu = nn.ReLU()
+        self.out_channels = out_channels
+        self.pool = nn.AvgPool2d(14, stride=1)
+        self.dropout = nn.Dropout2d(p=drop_out)
+        self.drop_out = drop_out
+
+    def forward(self, x):
+        if len(x.shape) == 3: 
+            x = torch.permute(x,(0,-1,1))
+            x = x.reshape(x.shape[0], x.shape[1] , 14, 14)
+        residual = x
+        out = self.conv1(x)
+        if self.drop_out is not None: 
+            out = self.dropout(out)
+        out = self.conv2(out)
+        if self.downsample:
+            residual = self.downsample(x)
+        out += residual
+        out = self.relu(out)
+        out = self.pool(out)
+        return out.reshape(-1,768)
+
+class SplitFeSViBS(SplitNetwork):
+    def __init__(
+        self, num_clients, device, 
+        network, criterion, base_dir, 
+        initial_block, final_block,
+        ):
+
+        self.initial_block = initial_block
+        self.final_block   = final_block    
+        self.num_clients = num_clients
+        self.device = device
+        self.network = network
+        self.criterion = criterion
+        self.base_dir = base_dir
+        self.train_chosen_blocks = [0] * num_clients
+
+    def set_optimizer_mel(self, name, lr):
+        if name == 'Adam':
+            self.optimizer_mel = [torch.optim.Adam(self.mel_body[i].parameters(), lr = lr) for i in range(self.num_clients)]
+
+    def train_round(self, client_i):
+        """
+        Training loop. 
+
+        client_i: Client index.
+
+        """
+        running_loss_client_i = 0
+        whole_labels = []
+        whole_preds = []
+        whole_probs = []
+        self.chosen_block = np.random.randint(low = self.initial_block, high= self.final_block+1) 
+        self.train_chosen_blocks[client_i] =  self.chosen_block
+        copy_network = copy.deepcopy(self.network)
+        weight_dic = {}
+        weight_dic['blocks'] = None
+        weight_dic['cls'] = None
+        weight_dic['pos_embed'] = None
+        weight_dic['resnet'] = None
+        print(f"Chosen Block:{self.chosen_block} for client {client_i}")
+        self.network.train()
+        for data in tqdm(self.CLIENTS_DATALOADERS[client_i]): 
+            self.optimizer.zero_grad()
+            imgs, labels = data[0].to(self.device), data[1].to(self.device)
+            labels = labels.reshape(labels.shape[0])
+            tail_output = self.network(x=imgs, chosen_block=self.chosen_block, client_idx = client_i)
+            loss = self.criterion(tail_output, labels)
+            loss.backward()
+            self.optimizer.step()
+            running_loss_client_i+= loss.item() 
+            _, predicted = torch.max(tail_output, 1)
+            whole_probs.append(torch.nn.Softmax(dim = -1)(tail_output).detach().cpu())
+            whole_labels.append(labels.detach().cpu())
+            whole_preds.append(predicted.detach().cpu()) 
+        self.metrics(client_i, whole_labels, whole_preds, running_loss_client_i, len(self.CLIENTS_DATALOADERS[client_i]), whole_probs, train = True)
+        
+        weight_dic['blocks'] = weight_vec(self.network.vit.blocks).detach().cpu()
+        weight_dic['cls'] = self.network.vit.cls_token.detach().cpu()
+        weight_dic['pos_embed'] = self.network.vit.pos_embed.detach().cpu()
+        
+        self.network.vit.blocks = copy.deepcopy(copy_network.vit.blocks)
+        self.network.vit.cls_token = copy.deepcopy(copy_network.vit.cls_token)
+        self.network.vit.pos_embed =  copy.deepcopy(copy_network.vit.pos_embed)
+        return weight_dic
+    
+    
+    def eval_round(self, client_i):
+        """
+        Evaluation loop. 
+
+        client_i: Client index.
+                
+        """
+        running_loss_client_i = 0
+        whole_labels = []
+        whole_preds = []
+        whole_probs = []
+        num_b = self.train_chosen_blocks[client_i]
+        print(f"Chosen block for testing: {num_b}")
+        self.network.eval()
+        with torch.no_grad():
+            for data in tqdm(self.testloader): 
+                imgs, labels = data[0].to(self.device), data[1].to(self.device)
+                labels = labels.reshape(labels.shape[0])
+                tail_output = self.network(x=imgs, chosen_block=num_b, client_idx = client_i)
+                loss = self.criterion(tail_output, labels)
+                running_loss_client_i+= loss.item() 
+                _, predicted = torch.max(tail_output, 1)
+                whole_probs.append(torch.nn.Softmax(dim = -1)(tail_output).detach().cpu())
+                whole_labels.append(labels.detach().cpu())
+                whole_preds.append(predicted.detach().cpu())    
+            self.metrics(client_i, whole_labels, whole_preds, running_loss_client_i, len(self.testloader), whole_probs, train= False)

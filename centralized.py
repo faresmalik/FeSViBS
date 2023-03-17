@@ -56,7 +56,7 @@ def centralized(dataset_name, lr, batch_size, Epochs, input_size, num_workers, s
 
     centralized_network = CentralizedFashion(
         device= device, network=model, criterion= criterion,
-        network_name=model_name, base_dir=save_dir
+        base_dir=save_dir
         )
 
     #Instantiate metrics and set optimizer
