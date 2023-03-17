@@ -61,7 +61,6 @@ def fesvibs(
         DATALOADERS, _, _, _, _, test_loader = isic2019(input_size= input_size, batch_size = batch_size, root_dir=root_dir, csv_file_path=csv_file_path, num_workers=num_workers)
         num_channels = 3
 
-    # loss that will be used for all 
     criterion = nn.CrossEntropyLoss()
 
     fesvibs_network = models.FeSVBiS(
