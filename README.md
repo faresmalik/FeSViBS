@@ -21,10 +21,11 @@ pip install -r requirements.txt
 
 We conduct all experiments on **three** datasets: 
 
-1. HAM10000 -- 
+1. HAM10000 -- Can be downloaded from [here](https://www.kaggle.com/datasets/kmader/skin-cancer-mnist-ham10000?select=HAM10000_images_part_2)
 2. Blood cells (BloodMNIST) -- MedMnist library 
-3. Federated version of ISIC2019 dataset -- Flamby library 
+3. Federated version of ISIC2019 dataset -- FLamby library 
 
+For the Federated ISIC2019 dataset, the path to __ISIC_2019_Training_Input_preprocessed__ directory and __train_test_split__  csv file, are required to run different methods on this dataset
 
 ## Running Centralized Training/Testing
 In order to run  **Centralized Training** run the following command: 
