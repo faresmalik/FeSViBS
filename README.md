@@ -81,7 +81,18 @@ In order to run  **FeSViBS with** Differential Privacy (DP) run the following co
 python FeSViBS.py --fesvibs_arg True --DP True --epsilon [epsilon value] --delta [delta value] --local_round [number of local rounds before federation] --dataset_name [choose the dataset name] --opt_name [default is Adam] --lr [learning rate] --seed [seed number] --base_dir [path data folder for HAM] --save_every_epochs [Save pickle files] --root_dir [Path to ISIC_2019_Training_Input_preprocessed for ISIC2019]  --csv_file_path [Path to train_test_split csv for ISIC2019] --num_clients [Number of clients] --Epochs [Number of Epochs] --initial_block 1 --final_block 6 
 
 ```
+## Citation
+```
+@misc{almalik2023fesvibs,
+      title={FeSViBS: Federated Split Learning of Vision Transformer with Block Sampling}, 
+      author={Faris Almalik and Naif Alkhunaizi and Ibrahim Almakky and Karthik Nandakumar},
+      year={2023},
+      eprint={2306.14638},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
 
+```
 ## References 
 
 [1] Yang, J., Shi, R., Ni, B.: Medmnist classification decathlon: A lightweight automl benchmark for medical image analysis. In: IEEE 18th International Symposium on Biomedical Imaging (ISBI). pp. 191–195 (2021) 
